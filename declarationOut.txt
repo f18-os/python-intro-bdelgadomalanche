@@ -314,8 +314,7 @@ name 1
 nation 1
 native 1
 naturalization 1
-nature 1
-nature's 1
+nature 2
 necessary 2
 necessity 2
 neglected 1
@@ -413,6 +412,7 @@ right 7
 rights 3
 rule 2
 ruler 1
+s 1
 sacred 1
 safety 1
 salaries 1

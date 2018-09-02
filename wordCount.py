@@ -13,7 +13,7 @@ index = 0
 
 with open(inputF, 'r') as txtF:
     for line in txtF:
-        words = filter(None, re.split("[.,!?:;\- \n\"]+", line))
+        words = filter(None, re.split("[.,'!?:;\- \n\"]+", line))
         print words
         for item in words:
             if item.lower() not in wordList:
@@ -26,7 +26,7 @@ print wordList
 for item in wordList:
     with open(inputF, 'r') as txtF:
         for line in txtF:
-            words = filter(None, re.split("[.,!?:;\- \n\"]+", line))
+            words = filter(None, re.split("[.,'!?:;\- \n\"]+", line))
             for i in words:
                 if i.lower() == item:
                     count[index] += 1
