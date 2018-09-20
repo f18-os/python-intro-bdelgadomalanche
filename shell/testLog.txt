@@ -1,0 +1,2 @@
+FAILED: no parameter, full pathname
+  /bin/uname

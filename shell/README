@@ -1,0 +1,21 @@
+Overview:
+    -This lab recreates a simple shell to handle simple commands, single I/O redirection and single pipes.
+
+Process:
+    -The user is asked to input a command by prompting the string "$ "
+    -Once input is entered the program runs a for loop until input is the string "exit"
+    -The cd command is checked first if not cd then process forks
+    -Inside the child we check the args to see if "<" ">" ">>" or "|" are contained to perform that right operation
+    -Otherwise it runs the command as normal with its arguments
+    -Once child dies, parent takes over and asks for input again to run through the same process again
+ 
+Resources:
+    -Used part of the source code from OS-Demos Repository provided to us
+    -Extra material used for piping: https://www.tutorialspoint.com/python/os_pipe.htm
+    -Reference material used to understand python split syntax: https://www.pythonforbeginners.com/dictionary/python-split
+    -Extra material used to understand fork: https://www.tutorialspoint.com/concurrency_in_python/concurrency_in_python_multiprocessing.htm
+    -Reference material used to understand I/O redirection and pipes: https://robots.thoughtbot.com/input-output-redirection-in-the-shell
+    -Reference material used to understand I/O redirection: https://www.tutorialspoint.com/unix/unix-io-redirections.htm
+    
+Collaborators:
+    -Found on COLLABOTATORS.md file

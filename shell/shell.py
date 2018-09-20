@@ -1,53 +1,46 @@
 #! /usr/bin/env python3
 
-import os, sys, time, re
+import os, sys, time, re, fileinput
 
 pid = os.getpid()               # get and remember pid
 usrIn = input("$ ")
 initDir = os.getcwd()
 
+#check for exit Command
 while usrIn != "exit":
 
+    #check if CD Command
     args = usrIn.split()
-    if args[0] == 'cd':
+    
+    if len(args) == 0:
+        os.write(2, ("Empty Command\n").encode())
+    
+    elif 'cd' in args:
         os.chdir(args[1])
     
     else:   
         rc = os.fork()
 
+        #fork failure check
         if rc < 0:
             os.write(2, ("fork failed, returning %d\n" % rc).encode())
             sys.exit(1)
-
+        
+        #child process
         elif rc == 0:                   # child
-            if len(args) == 1:
-                for dir in re.split(":", os.environ['PATH']): # try each directory in the path
-                    program = "%s/%s" % (dir, args[0])
-                    try:
-                        os.execve(program, args, os.environ) # try to exec program
-                    except FileNotFoundError:             # ...expected
-                        pass                              # ...fail quietly
-
-                os.write(2, ("Child:    Could not exec %s\n" % args[0]).encode())
-                sys.exit(1)                 # terminate with error
-            
-            elif len(args) == 2:
-                for dir in re.split(":", os.environ['PATH']): # try each directory in the path
-                    program = "%s/%s" % (dir, args[0])
-                    try:
-                        os.execve(program, args, os.environ) # try to exec program
-                    except FileNotFoundError:             # ...expected
-                        pass                              # ...fail quietly
-
-                os.write(2, ("Child:    Could not exec %s\n" % args[0]).encode())
-                sys.exit(1)                 # terminate with error
-
-            elif args[2] == '>':
+            #ouput redirection override
+            if '>' in args:
                 os.close(1)                 # redirect child's stdout
-                sys.stdout = open(args[3], "w+")
-                fd = sys.stdout.fileno() # os.open("p4-output.txt", os.O_CREAT)
+                sys.stdout = open(args[len(args) - 1], "w+")
+                fd = sys.stdout.fileno() 
                 os.set_inheritable(fd, True)
-                args = [args[0], args[1]]
+                
+                i = 0
+                temp = []
+                while args[i] != '>':
+                    temp.append(args[i])
+                    i += 1
+                args = temp
 
                 for dir in re.split(":", os.environ['PATH']): # try each directory in path
                     program = "%s/%s" % (dir, args[0])
@@ -59,13 +52,20 @@ while usrIn != "exit":
                 os.write(2, ("Child:    Error: Could not exec %s\n" % args[0]).encode())
                 sys.exit(1)                 # terminate with error
             
-            elif args[2] == '>>':
+            #ouput redirection append
+            elif '>>' in args:
                 os.close(1)                 # redirect child's stdout
-                sys.stdout = open(args[3], "a+")
-                fd = sys.stdout.fileno() # os.open("p4-output.txt", os.O_CREAT)
+                sys.stdout = open(args[len(args) - 1], "a+")
+                fd = sys.stdout.fileno() 
                 os.set_inheritable(fd, True)
-                args = [args[0], args[1]]
-
+                
+                i = 0
+                temp = []
+                while args[i] != '>>':
+                    temp.append(args[i])
+                    i += 1
+                args = temp
+                
                 for dir in re.split(":", os.environ['PATH']): # try each directory in path
                     program = "%s/%s" % (dir, args[0])
                     try:
@@ -76,10 +76,19 @@ while usrIn != "exit":
                 os.write(2, ("Child:    Error: Could not exec %s\n" % args[0]).encode())
                 sys.exit(1)                 # terminate with error
             
-            elif args[1] == '<':
-                inFile = open(args[2], "r")
-                target = inFile.readline().rstrip("\n\r")#.split("\n")
-                args = [args[0], target]
+            #input redirection 
+            elif '<' in args:
+                inFile = open(args[len(args) - 1], "r")
+                #target = inFile.readline().rstrip("\n\r")#.split("\n")
+                
+                i = 0
+                temp = []
+                while args[i] != '<':
+                    temp.append(args[i])
+                    i += 1
+                args = temp
+                for line in inFile:
+                    args.append(line.rstrip("\n\r"))
 
                 for dir in re.split(":", os.environ['PATH']): # try each directory in the path
                     program = "%s/%s" % (dir, args[0])
@@ -91,14 +100,88 @@ while usrIn != "exit":
                 os.write(2, ("Child:    Could not exec %s\n" % args[0]).encode())
                 sys.exit(1)                 # terminate with error
                 
+            #pipe handling
+            elif '|' in args:
+                r, w = os.pipe() 
+                for f in (r, w):
+                    os.set_inheritable(f, True)
+                processid = os.fork()
+                
+                if processid < 0:
+                    os.write(2, ("fork failed, returning %d\n" % rc).encode())
+                    sys.exit(1)
+
+                elif processid == 0:
+                    os.close(1)
+                    d = os.dup(w)
+                    os.set_inheritable(d, True)
+                    
+                    i = 0
+                    temp = []
+                    while args[i] != '|':
+                        temp.append(args[i])
+                        i += 1
+                    args = temp
+                    
+                    for dir in re.split(":", os.environ['PATH']): # try each directory in the path
+                        program = "%s/%s" % (dir, args[0])
+                        try:
+                            os.execve(program, args, os.environ) # try to exec program
+                        except FileNotFoundError:             # ...expected
+                            pass                              # ...fail quietly
+
+                    os.write(2, ("Child:    Could not exec %s\n" % args[0]).encode())
+                    sys.exit(1)                 # terminate with error
+                    
+                else: 
+                    os.wait()
+                    os.close(0)
+                    d = os.dup(r)
+                    os.set_inheritable(d, True)
+                    
+                    i = 0
+                    temp = []
+                    while args[i] != '|':
+                        i += 1
+                    i+=1
+                    
+                    while i != len(args):
+                        temp.append(args[i])
+                        i += 1
+                    args = temp
+                    
+                    for fd in (w, r):
+                        os.close(fd)
+                    for line in fileinput.input():
+                        args.append(line.rstrip("\n\r"))
+                   
+                    for dir in re.split(":", os.environ['PATH']): # try each directory in the path
+                        program = "%s/%s" % (dir, args[0])
+                        try:
+                            os.execve(program, args, os.environ) # try to exec program
+                        except FileNotFoundError:             # ...expected
+                            pass                              # ...fail quietly
+
+                    os.write(2, ("Child:    Could not exec %s\n" % args[0]).encode())
+                    sys.exit(1)                 # terminate with error
+               
+            #commmands without any I/O redirection or piping
             else:
-                os.write(2, ("Unknown Command").encode())
+                for dir in re.split(":", os.environ['PATH']): # try each directory in the path
+                    program = "%s/%s" % (dir, args[0])
+                    try:
+                        os.execve(program, args, os.environ) # try to exec program
+                    except FileNotFoundError:             # ...expected
+                        pass                              # ...fail quietly
+
+                os.write(2, ("Child:    Could not exec %s\n" % args[0]).encode())
                 sys.exit(1)                 # terminate with error
 
+        #parent process
         else:                           # parent (forked ok)
             childPidCode = os.wait()
-            os.write(1, ("Parent: Child %d terminated with exit code %d\n" % 
-                        childPidCode).encode())
+            #os.write(1, ("Parent: Child %d terminated with exit code %d\n" % 
+            #            childPidCode).encode())
     
     os.write(1, ("#########################################################\n").encode())
     usrIn = input("$ ")
